@@ -1,1 +1,1 @@
-rootProject.name = "piggy"
+rootProject.name = "pigg-backend"
