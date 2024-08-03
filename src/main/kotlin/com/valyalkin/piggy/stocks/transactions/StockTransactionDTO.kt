@@ -1,4 +1,4 @@
-package com.valyalkin.piggy.transactions
+package com.valyalkin.piggy.stocks.transactions
 
 import java.math.BigDecimal
 import java.math.BigInteger

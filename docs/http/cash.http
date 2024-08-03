@@ -1,0 +1,21 @@
+POST http://localhost:8080/v1/cash/deposit
+Content-Type: application/json
+
+{
+  "userId": "user",
+  "amount": 200000.0,
+  "currency": "SGD"
+}
+
+###
+POST http://localhost:8080/v1/cash/withdraw
+Content-Type: application/json
+
+{
+"userId": "user",
+"amount": 300000.0,
+"currency": "USD"
+}
+
+###
+GET http://localhost:8080/v1/cash/balance/user

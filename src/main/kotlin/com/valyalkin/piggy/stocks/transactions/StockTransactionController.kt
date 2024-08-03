@@ -1,4 +1,4 @@
-package com.valyalkin.piggy.transactions
+package com.valyalkin.piggy.stocks.transactions
 
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
