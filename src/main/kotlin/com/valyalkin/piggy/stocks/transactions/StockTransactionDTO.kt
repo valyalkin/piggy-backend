@@ -1,15 +1,17 @@
 package com.valyalkin.piggy.stocks.transactions
 
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import java.math.BigDecimal
-import java.math.BigInteger
 import java.time.OffsetDateTime
 
 data class StockTransactionDTO(
-    val userId: String,
-    val ticker: String,
+    @field:NotBlank val userId: String,
+    @field:NotBlank val ticker: String,
     val date: OffsetDateTime,
-    val quantity: BigInteger,
-    val price: BigDecimal,
+    @field:Min(value = 1, message = "Quantity must be greater than 0") val quantity: Long,
+    @field:DecimalMin(value = "0.01", message = "Price must be greater than 0") val price: BigDecimal,
     val transactionType: TransactionType,
     val currency: Currency,
 )

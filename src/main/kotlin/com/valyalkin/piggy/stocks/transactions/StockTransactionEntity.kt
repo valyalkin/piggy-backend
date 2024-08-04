@@ -5,7 +5,6 @@ package com.valyalkin.piggy.stocks.transactions
 import jakarta.persistence.*
 import org.springframework.data.repository.CrudRepository
 import java.math.BigDecimal
-import java.math.BigInteger
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -18,7 +17,7 @@ data class StockTransaction(
     @Column(name = "user_id") val userId: String,
     val ticker: String,
     @Temporal(TemporalType.TIMESTAMP) val date: OffsetDateTime,
-    val quantity: BigInteger,
+    val quantity: Long,
     val price: BigDecimal,
     @Enumerated(EnumType.STRING) @Column(name = "transaction_type") val transactionType: TransactionType,
     @Enumerated(EnumType.STRING) val currency: Currency,

@@ -4,7 +4,8 @@ Content-Type: application/json
 {
   "userId": "user",
   "amount": 200000.0,
-  "currency": "SGD"
+  "currency": "USD",
+  "date": "2023-11-24T18:35:24.00Z"
 }
 
 ###
@@ -14,7 +15,8 @@ Content-Type: application/json
 {
 "userId": "user",
 "amount": 300000.0,
-"currency": "USD"
+"currency": "USD",
+  "date": "2023-11-24T18:35:24.00Z"
 }
 
 ###

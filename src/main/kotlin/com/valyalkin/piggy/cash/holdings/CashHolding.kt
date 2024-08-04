@@ -8,6 +8,11 @@ import java.util.*
 
 interface CashHoldingsRepository : CrudRepository<CashHolding, UUID> {
     fun findByUserId(userId: String): List<CashHolding>
+
+    fun findByUserIdAndCurrency(
+        userId: String,
+        currency: Currency,
+    ): List<CashHolding>
 }
 
 @Entity
