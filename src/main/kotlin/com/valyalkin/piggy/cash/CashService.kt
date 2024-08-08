@@ -75,7 +75,7 @@ class CashService(
             } else {
                 cashHoldingsRepository.save(it.copy(totalAmount = newAmount))
             }
-        } ?: throw NotFoundException("Did not find any cash holdings for user $userId and  currency $currency")
+        } ?: throw NotFoundException("Did not find any cash holdings for user $userId and currency $currency")
 
         return cashTransactionRepository.save(
             CashTransactionEntity(

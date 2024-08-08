@@ -8,11 +8,11 @@ import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.util.*
 
-interface StockTransactionRepository : CrudRepository<StockTransaction, UUID>
+interface StockTransactionRepository : CrudRepository<StockTransactionEntity, UUID>
 
 @Entity
 @Table(name = "stock_transactions")
-data class StockTransaction(
+data class StockTransactionEntity(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: UUID = UUID.randomUUID(),
     @Column(name = "user_id") val userId: String,
     val ticker: String,

@@ -17,15 +17,8 @@ class StockTransactionsService(
     private val stockHoldingsRepository: StockHoldingsRepository,
 ) {
     @Transactional
-    fun processTransaction(stockTransactionDTO: StockTransactionDTO): StockTransaction {
-        return when (stockTransactionDTO.transactionType) {
-            TransactionType.BUY -> handleBuy(stockTransactionDTO)
-            TransactionType.SELL -> handleSell(stockTransactionDTO)
-        }
-    }
-
-    private fun handleBuy(stockTransactionDTO: StockTransactionDTO): StockTransaction {
-        val (userId, ticker, date, quantity, price, transactionType, currency) = stockTransactionDTO
+    fun buy(stockTransactionDTO: StockTransactionDTO): StockTransactionEntity {
+        val (userId, ticker, date, quantity, price, currency) = stockTransactionDTO
 
         // 1. Calculate total amount
         val buyCashAmount = BigDecimal.valueOf(quantity).multiply(price)
@@ -69,7 +62,8 @@ class StockTransactionsService(
 
             val newQuantity = previousQuantity.plus(quantity)
             val newAveragePrice =
-                price.plus(previousAveragePrice)
+                price
+                    .plus(previousAveragePrice)
                     .divide(BigDecimal.valueOf(newQuantity))
 
             stockHoldingsRepository.save(
@@ -81,20 +75,21 @@ class StockTransactionsService(
         }
 
         return stockTransactionRepository.save(
-            StockTransaction(
+            StockTransactionEntity(
                 userId = userId,
                 ticker = ticker,
                 date = date,
                 quantity = quantity,
                 price = price,
-                transactionType = transactionType,
+                transactionType = TransactionType.BUY,
                 currency = currency,
             ),
         )
     }
 
-    private fun handleSell(stockTransactionDTO: StockTransactionDTO): StockTransaction {
-        val (userId, ticker, date, quantity, price, transactionType, currency) = stockTransactionDTO
+    @Transactional
+    fun sell(stockTransactionDTO: StockTransactionDTO): StockTransactionEntity {
+        val (userId, ticker, date, quantity, price, currency) = stockTransactionDTO
 
         // 1. Find stock holding and check if there is enough to sell
         val stockHoldings = stockHoldingsRepository.getByUserIdAndTicker(userId, ticker)
@@ -136,13 +131,13 @@ class StockTransactionsService(
 
             // 4. Record the transaction
             return stockTransactionRepository.save(
-                StockTransaction(
+                StockTransactionEntity(
                     userId = userId,
                     ticker = ticker,
                     date = date,
                     quantity = quantity,
                     price = price,
-                    transactionType = transactionType,
+                    transactionType = TransactionType.SELL,
                     currency = currency,
                 ),
             )
