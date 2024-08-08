@@ -13,7 +13,7 @@ class StockTransactionController(
     @ResponseStatus(HttpStatus.CREATED)
     fun createTransaction(
         @RequestBody @Valid stockTransactionDTO: StockTransactionDTO,
-    ) {
+    ): StockTransaction {
         return service.processTransaction(stockTransactionDTO)
     }
 }

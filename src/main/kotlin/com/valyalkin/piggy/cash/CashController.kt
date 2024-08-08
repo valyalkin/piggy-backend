@@ -2,6 +2,7 @@ package com.valyalkin.piggy.cash
 
 import com.valyalkin.piggy.cash.holdings.CashHolding
 import com.valyalkin.piggy.cash.model.CashTransactionDTO
+import com.valyalkin.piggy.cash.transactions.CashTransactionEntity
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -21,23 +22,17 @@ class CashController(
     @ResponseStatus(HttpStatus.CREATED)
     fun depositCash(
         @RequestBody @Valid cashTransactionDTO: CashTransactionDTO,
-    ) {
-        cashService.depositCash(cashTransactionDTO)
-    }
+    ): CashTransactionEntity = cashService.depositCash(cashTransactionDTO)
 
     @PostMapping("/withdraw")
     @ResponseStatus(HttpStatus.CREATED)
     fun withdrawCash(
         @RequestBody @Valid cashTransactionDTO: CashTransactionDTO,
-    ) {
-        cashService.withdrawCash(cashTransactionDTO)
-    }
+    ): CashTransactionEntity = cashService.withdrawCash(cashTransactionDTO)
 
     @GetMapping("/balance/{userId}")
     @ResponseStatus(HttpStatus.OK)
     fun getBalance(
         @PathVariable("userId") userId: String,
-    ): List<CashHolding> {
-        return cashService.getCashBalanceForUser(userId)
-    }
+    ): List<CashHolding> = cashService.getCashBalanceForUser(userId)
 }

@@ -134,6 +134,7 @@ class StockTransactionsService(
                 )
             }
 
+            // 4. Record the transaction
             return stockTransactionRepository.save(
                 StockTransaction(
                     userId = userId,

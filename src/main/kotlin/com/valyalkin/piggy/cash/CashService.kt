@@ -18,20 +18,8 @@ class CashService(
     private val cashTransactionRepository: CashTransactionRepository,
 ) {
     @Transactional
-    fun depositCash(cashTransactionDTO: CashTransactionDTO) {
-        // Add transaction to the list of transactions
-        cashTransactionRepository.save(
-            CashTransactionEntity(
-                userId = cashTransactionDTO.userId,
-                amount = cashTransactionDTO.amount,
-                currency = cashTransactionDTO.currency,
-                cashTransactionType = CashTransactionType.DEPOSIT,
-                date = cashTransactionDTO.date,
-            ),
-        )
-
+    fun depositCash(cashTransactionDTO: CashTransactionDTO): CashTransactionEntity {
         // Add the amount to holdings
-
         // 1. Get all holdings for the given user
         val holdings = cashHoldingsRepository.findByUserId(userId = cashTransactionDTO.userId)
 
@@ -51,44 +39,54 @@ class CashService(
             val newAmount = oldAmount.plus(cashTransactionDTO.amount)
             cashHoldingsRepository.save(holding.copy(totalAmount = newAmount))
         }
+
+        // Add transaction to the list of transactions
+        return cashTransactionRepository.save(
+            CashTransactionEntity(
+                userId = cashTransactionDTO.userId,
+                amount = cashTransactionDTO.amount,
+                currency = cashTransactionDTO.currency,
+                cashTransactionType = CashTransactionType.DEPOSIT,
+                date = cashTransactionDTO.date,
+            ),
+        )
     }
 
     @Transactional
-    fun withdrawCash(cashTransactionDTO: CashTransactionDTO) {
+    fun withdrawCash(cashTransactionDTO: CashTransactionDTO): CashTransactionEntity {
         val (userId, amount, currency, date) = cashTransactionDTO
 
         // 1. Get all cash holdings for the given user
-        val holdings = cashHoldingsRepository.findByUserId(userId = userId)
+        val holdings = cashHoldingsRepository.findByUserIdAndCurrency(userId = userId, currency = currency)
 
         if (holdings.isEmpty()) {
-            throw NotFoundException("Did not find any cash holdings for the user")
+            throw BusinessException("Did not find any cash holdings for user $userId and currency $currency")
         }
 
         // 2. Get a holding for the given currency
-        val holding = holdings.firstOrNull { it.currency == currency }
+        val holding = holdings.firstOrNull()
 
         holding?.let {
             val oldAmount = it.totalAmount
             val newAmount = oldAmount.minus(amount)
 
             if (newAmount < BigDecimal.ZERO) {
-                throw BusinessException("Amount to withdraw is bigger than available")
+                throw BusinessException("Amount to withdraw is bigger than available balance")
             } else {
                 cashHoldingsRepository.save(it.copy(totalAmount = newAmount))
-                cashTransactionRepository.save(
-                    CashTransactionEntity(
-                        userId = userId,
-                        amount = amount,
-                        currency = currency,
-                        cashTransactionType = CashTransactionType.WITHDRAW,
-                        date = date,
-                    ),
-                )
             }
-        } ?: throw NotFoundException("Did not find any holdings of currency $currency")
+        } ?: throw NotFoundException("Did not find any cash holdings for user $userId and  currency $currency")
+
+        return cashTransactionRepository.save(
+            CashTransactionEntity(
+                userId = userId,
+                amount = amount,
+                currency = currency,
+                cashTransactionType = CashTransactionType.WITHDRAW,
+                date = date,
+            ),
+        )
     }
 
-    fun getCashBalanceForUser(userId: String): List<CashHolding> {
-        return cashHoldingsRepository.findByUserId(userId)
-    }
+    fun getCashBalanceForUser(userId: String): List<CashHolding> = cashHoldingsRepository.findByUserId(userId)
 }
