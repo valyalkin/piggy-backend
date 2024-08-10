@@ -1,6 +1,5 @@
 package com.valyalkin.piggy.stocks.transactions
 
-import com.valyalkin.piggy.cash.holdings.CashHolding
 import com.valyalkin.piggy.cash.holdings.CashHoldingsRepository
 import com.valyalkin.piggy.configuration.BusinessException
 import com.valyalkin.piggy.configuration.SystemException
@@ -9,6 +8,7 @@ import com.valyalkin.piggy.stocks.holdings.StockHoldingsRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @Service
 class StockTransactionsService(
@@ -60,11 +60,12 @@ class StockTransactionsService(
             val previousQuantity = stockHolding.quantity
             val previousAveragePrice = stockHolding.averagePrice
 
+            val previousTotalValue = previousAveragePrice.multiply(BigDecimal.valueOf(previousQuantity))
+            val incomingTotalValue = price.multiply(BigDecimal.valueOf(quantity))
+
+            val newTotalValue = previousTotalValue.plus(incomingTotalValue)
             val newQuantity = previousQuantity.plus(quantity)
-            val newAveragePrice =
-                price
-                    .plus(previousAveragePrice)
-                    .divide(BigDecimal.valueOf(newQuantity))
+            val newAveragePrice = newTotalValue.divide(BigDecimal.valueOf(newQuantity), RoundingMode.DOWN)
 
             stockHoldingsRepository.save(
                 stockHolding.copy(
@@ -99,12 +100,15 @@ class StockTransactionsService(
         stockHolding?.let {
             // 2. Calculate new stock holding, only quantity changes, but the average price stays the same
             val holdingQuantity = it.quantity
-            val newQuantity = holdingQuantity.minus(quantity)
-            if (newQuantity < 0) {
+            val newQuantity = holdingQuantity - quantity
+            if (newQuantity > 0) {
+                stockHoldingsRepository.save(stockHolding.copy(quantity = newQuantity))
+            } else if (newQuantity == 0L) {
+                // Delete the holding from the list of holdings, it is sold completely
+                stockHoldingsRepository.deleteById(it.id)
+            } else {
                 throw BusinessException("Sell quantity is bigger than a holding")
             }
-
-            stockHoldingsRepository.save(stockHolding.copy(quantity = newQuantity))
 
             // 3. Increase cash balance for this currency
             val cashHoldings = cashHoldingsRepository.findByUserIdAndCurrency(userId, currency)
@@ -113,13 +117,10 @@ class StockTransactionsService(
 
             val releasedCash = price.multiply(BigDecimal.valueOf(quantity))
 
+            // This should never happen, it is a system error
             if (cashHolding == null) {
-                cashHoldingsRepository.save(
-                    CashHolding(
-                        userId = userId,
-                        totalAmount = releasedCash,
-                        currency = currency,
-                    ),
+                throw SystemException(
+                    "Cash holding of currency $currency doesn't exist for this user",
                 )
             } else {
                 cashHoldingsRepository.save(
