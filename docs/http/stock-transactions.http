@@ -1,14 +1,14 @@
 # Create transactions
 
-POST http://localhost:8080/v1/stocks/transactions
+POST http://localhost:8080/v1/stocks/transaction
 Content-Type: application/json
 
 {
   "userId": "user",
   "ticker": "APPL",
-  "date" : "2023-11-24T18:35:24.00Z",
-  "quantity": 3,
-  "price": 100.0,
-  "transactionType": "BUY",
+  "date" : "2023-11-26T18:35:24.00Z",
+  "quantity": 5,
+  "price": 150.0,
+  "transactionType": "SELL",
   "currency": "USD"
 }

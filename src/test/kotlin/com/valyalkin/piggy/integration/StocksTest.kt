@@ -1,10 +1,10 @@
 package com.valyalkin.piggy.integration
 
-import com.valyalkin.piggy.cash.holdings.CashHolding
 import com.valyalkin.piggy.cash.holdings.CashHoldingsRepository
 import com.valyalkin.piggy.configuration.Mapper
 import com.valyalkin.piggy.stocks.holdings.StockHoldingEntity
 import com.valyalkin.piggy.stocks.holdings.StockHoldingsRepository
+import com.valyalkin.piggy.stocks.pl.ReleasedProfitLossEntityRepository
 import com.valyalkin.piggy.stocks.transactions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -36,11 +36,15 @@ class StocksTest {
     @Autowired
     private lateinit var stockHoldingsRepository: StockHoldingsRepository
 
+    @Autowired
+    private lateinit var releasedProfitLossEntityRepository: ReleasedProfitLossEntityRepository
+
     @BeforeEach
     fun cleanUp() {
         cashHoldingsRepository.deleteAll()
         stockTransactionRepository.deleteAll()
         stockHoldingsRepository.deleteAll()
+        releasedProfitLossEntityRepository.deleteAll()
     }
 
     private val testUserId = "test"
@@ -64,7 +68,7 @@ class StocksTest {
     private val testPrice = BigDecimal.valueOf(100.5)
 
     @Test
-    fun `Buy - Should fail if there is no cash balance available in the required currency`() {
+    fun `Buy - Should add new transaction and add new stock holding`() {
         val stockTransactionDTO =
             StockTransactionDTO(
                 userId = testUserId,
@@ -73,91 +77,14 @@ class StocksTest {
                 quantity = testQuantity,
                 price = testPrice,
                 currency = testCurrency,
+                transactionType = TransactionType.BUY,
             )
 
         val transactionResponse =
             mockMvc
                 .perform(
                     MockMvcRequestBuilders
-                        .post("/v1/stocks/buy")
-                        .contentType("application/json")
-                        .content(
-                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
-                        ),
-                ).andExpect(
-                    status().is4xxClientError,
-                ).andReturn()
-                .response.contentAsString
-
-        assertThat(transactionResponse).contains("No cash balance was found for the given currency USD")
-    }
-
-    @Test
-    fun `Buy - Should fail if there is not enough cash available`() {
-        val cashAmountAvailable = BigDecimal.valueOf(1L)
-        // Add previous holding
-        cashHoldingsRepository.save(
-            CashHolding(
-                userId = testUserId,
-                totalAmount = cashAmountAvailable,
-                currency = testCurrency,
-            ),
-        )
-
-        val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
-            )
-
-        val transactionResponse =
-            mockMvc
-                .perform(
-                    MockMvcRequestBuilders
-                        .post("/v1/stocks/buy")
-                        .contentType("application/json")
-                        .content(
-                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
-                        ),
-                ).andExpect(
-                    status().is4xxClientError,
-                ).andReturn()
-                .response.contentAsString
-
-        assertThat(transactionResponse).contains("Not enough cash to buy this stock")
-    }
-
-    @Test
-    fun `Buy - Should create a new stock holding if the stock previously wasn't owned by this user`() {
-        val cashAmountAvailable = BigDecimal.valueOf(5000L)
-        // Add previous holding
-        cashHoldingsRepository.save(
-            CashHolding(
-                userId = testUserId,
-                totalAmount = cashAmountAvailable,
-                currency = testCurrency,
-            ),
-        )
-
-        val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
-            )
-
-        val transactionResponse =
-            mockMvc
-                .perform(
-                    MockMvcRequestBuilders
-                        .post("/v1/stocks/buy")
+                        .post("/v1/stocks/transaction")
                         .contentType("application/json")
                         .content(
                             Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
@@ -192,35 +119,56 @@ class StocksTest {
             assertThat(it.quantity).isEqualTo(testQuantity)
             assertThat(it.averagePrice).isEqualByComparingTo(testPrice)
         }
-        // Check if cash amount has decreased by the right value
-        val cashHoldings = cashHoldingsRepository.findByUserIdAndCurrency(testUserId, testCurrency)
-        assertThat(cashHoldings.size).isEqualTo(1)
-        cashHoldings[0].let {
-            assertThat(it.userId).isEqualTo(testUserId)
-            assertThat(it.currency).isEqualTo(testCurrency)
-            assertThat(it.totalAmount).isEqualByComparingTo(
-                cashAmountAvailable.minus(
-                    testPrice.multiply(BigDecimal.valueOf(testQuantity)),
-                ),
-            )
-        }
     }
 
     @Test
-    fun `Buy - Should update previously held position and calculate new average price`() {
-        val cashAmountAvailable = BigDecimal.valueOf(5000L)
-        // Add previous cash holding
-        cashHoldingsRepository.save(
-            CashHolding(
+    fun `Sell - Should fail if first transaction is SELL`() {
+        val stockTransactionDTO =
+            StockTransactionDTO(
                 userId = testUserId,
-                totalAmount = cashAmountAvailable,
+                ticker = testTicker,
+                date = testDate,
+                quantity = testQuantity,
+                price = testPrice,
                 currency = testCurrency,
+                transactionType = TransactionType.SELL,
+            )
+
+        val transactionResponse =
+            mockMvc
+                .perform(
+                    MockMvcRequestBuilders
+                        .post("/v1/stocks/transaction")
+                        .contentType("application/json")
+                        .content(
+                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
+                        ),
+                ).andExpect(
+                    status().is4xxClientError,
+                ).andReturn()
+                .response.contentAsString
+
+        assertThat(transactionResponse).contains("Transaction cannot be added, first transaction should be BUY")
+    }
+
+    @Test
+    fun `Buy - Should add new transaction and update the existing stock holding with new average price and quantity`() {
+        val previousQuantity = 5L
+        val previousAveragePrice = BigDecimal.valueOf(100L)
+
+        // Previous transaction and stock holding
+        stockTransactionRepository.save(
+            StockTransactionEntity(
+                userId = testUserId,
+                ticker = testTicker,
+                date = testDate.minusDays(1), // one day before
+                quantity = previousQuantity,
+                price = previousAveragePrice,
+                currency = testCurrency,
+                transactionType = TransactionType.BUY,
             ),
         )
 
-        val previousQuantity = 5L
-        val previousAveragePrice = BigDecimal.valueOf(100L)
-        // Add previous stock holding
         stockHoldingsRepository.save(
             StockHoldingEntity(
                 userId = testUserId,
@@ -238,13 +186,14 @@ class StocksTest {
                 quantity = testQuantity,
                 price = testPrice,
                 currency = testCurrency,
+                transactionType = TransactionType.BUY,
             )
 
         val transactionResponse =
             mockMvc
                 .perform(
                     MockMvcRequestBuilders
-                        .post("/v1/stocks/buy")
+                        .post("/v1/stocks/transaction")
                         .contentType("application/json")
                         .content(
                             Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
@@ -276,57 +225,29 @@ class StocksTest {
         stockHoldings[0].let {
             assertThat(it.userId).isEqualTo(testUserId)
             assertThat(it.ticker).isEqualTo(testTicker)
-            assertThat(it.quantity).isEqualTo(15L) // Expected 10 + 5 = 15
+            assertThat(it.quantity).isEqualTo(testQuantity.plus(previousQuantity))
             assertThat(it.averagePrice).isEqualByComparingTo(BigDecimal.valueOf(100.33))
         }
-        // Check if cash amount has decreased by the right value
-        val cashHoldings = cashHoldingsRepository.findByUserIdAndCurrency(testUserId, testCurrency)
-        assertThat(cashHoldings.size).isEqualTo(1)
-        cashHoldings[0].let {
-            assertThat(it.userId).isEqualTo(testUserId)
-            assertThat(it.currency).isEqualTo(testCurrency)
-            assertThat(it.totalAmount).isEqualByComparingTo(
-                cashAmountAvailable.minus(
-                    testPrice.multiply(BigDecimal.valueOf(testQuantity)),
-                ),
-            )
-        }
     }
 
     @Test
-    fun `Sell - Should fail if there is nothing to sell`() {
-        val stockTransactionDTO =
-            StockTransactionDTO(
+    fun `Sell - Should add new transaction and update the existing stock holding with new quantity, record released pl`() {
+        val previousQuantity = testQuantity
+        val previousAveragePrice = BigDecimal.valueOf(80L)
+
+        // Previous transaction and stock holding
+        stockTransactionRepository.save(
+            StockTransactionEntity(
                 userId = testUserId,
                 ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
+                date = testDate.minusDays(1), // one day before
+                quantity = previousQuantity,
+                price = previousAveragePrice,
                 currency = testCurrency,
-            )
+                transactionType = TransactionType.BUY,
+            ),
+        )
 
-        val transactionResponse =
-            mockMvc
-                .perform(
-                    MockMvcRequestBuilders
-                        .post("/v1/stocks/sell")
-                        .contentType("application/json")
-                        .content(
-                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
-                        ),
-                ).andExpect(
-                    status().is4xxClientError,
-                ).andReturn()
-                .response.contentAsString
-
-        assertThat(transactionResponse).contains("There is no stock holding of $testTicker for this user")
-    }
-
-    @Test
-    fun `Sell - Should fail if quantity to sell is bigger than that of the existing holding`() {
-        val previousQuantity = 5L
-        val previousAveragePrice = BigDecimal.valueOf(75L)
-        // Add previous stock holding
         stockHoldingsRepository.save(
             StockHoldingEntity(
                 userId = testUserId,
@@ -344,105 +265,14 @@ class StocksTest {
                 quantity = testQuantity,
                 price = testPrice,
                 currency = testCurrency,
+                transactionType = TransactionType.SELL,
             )
 
         val transactionResponse =
             mockMvc
                 .perform(
                     MockMvcRequestBuilders
-                        .post("/v1/stocks/sell")
-                        .contentType("application/json")
-                        .content(
-                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
-                        ),
-                ).andExpect(
-                    status().is4xxClientError,
-                ).andReturn()
-                .response.contentAsString
-
-        assertThat(transactionResponse).contains("Sell quantity is bigger than a holding")
-    }
-
-    @Test
-    fun `Sell - Should fail if there was no cash holding in the even of selling`() {
-        val previousQuantity = 25L
-        val previousAveragePrice = BigDecimal.valueOf(75L)
-        // Add previous stock holding
-        stockHoldingsRepository.save(
-            StockHoldingEntity(
-                userId = testUserId,
-                ticker = testTicker,
-                quantity = previousQuantity,
-                averagePrice = previousAveragePrice,
-            ),
-        )
-
-        val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
-            )
-
-        val transactionResponse =
-            mockMvc
-                .perform(
-                    MockMvcRequestBuilders
-                        .post("/v1/stocks/sell")
-                        .contentType("application/json")
-                        .content(
-                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
-                        ),
-                ).andExpect(
-                    status().is5xxServerError,
-                ).andReturn()
-                .response.contentAsString
-
-        assertThat(transactionResponse).contains("Cash holding of currency $testCurrency doesn't exist for this user")
-    }
-
-    @Test
-    fun `Sell - Should decrease the existing holding quantity and increase cash holding by the release amount`() {
-        val cashAmountAvailable = BigDecimal.valueOf(1000L)
-        // Add previous cash holding
-        cashHoldingsRepository.save(
-            CashHolding(
-                userId = testUserId,
-                totalAmount = cashAmountAvailable,
-                currency = testCurrency,
-            ),
-        )
-
-        val previousQuantity = 25L
-        val previousAveragePrice = BigDecimal.valueOf(75L)
-        // Add previous stock holding
-        stockHoldingsRepository.save(
-            StockHoldingEntity(
-                userId = testUserId,
-                ticker = testTicker,
-                quantity = previousQuantity,
-                averagePrice = previousAveragePrice,
-            ),
-        )
-
-        val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity, // 10 shares
-                price = testPrice, // 100.5 USD per share
-                currency = testCurrency,
-            )
-
-        val transactionResponse =
-            mockMvc
-                .perform(
-                    MockMvcRequestBuilders
-                        .post("/v1/stocks/sell")
+                        .post("/v1/stocks/transaction")
                         .contentType("application/json")
                         .content(
                             Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
@@ -474,38 +304,44 @@ class StocksTest {
         stockHoldings[0].let {
             assertThat(it.userId).isEqualTo(testUserId)
             assertThat(it.ticker).isEqualTo(testTicker)
-            assertThat(it.quantity).isEqualTo(15L) // Expected 25 - 10 = 15 shares
-            assertThat(it.averagePrice).isEqualByComparingTo(previousAveragePrice) // average price doesn't change
+            assertThat(it.quantity).isEqualTo(0L)
+            assertThat(it.averagePrice).isEqualByComparingTo(previousAveragePrice)
         }
-        // Check if cash amount has increased by the right value
-        val cashHoldings = cashHoldingsRepository.findByUserIdAndCurrency(testUserId, testCurrency)
-        assertThat(cashHoldings.size).isEqualTo(1)
-        cashHoldings[0].let {
-            assertThat(it.userId).isEqualTo(testUserId)
-            assertThat(it.currency).isEqualTo(testCurrency)
-            assertThat(it.totalAmount).isEqualByComparingTo(
-                // was 1000, 10 shares * 100.5 USD price per share is sold
-                // 1000 + 10 * 100.5 = 2005
-                BigDecimal.valueOf(2005),
+
+        // Check released profit
+        val releasedPL =
+            releasedProfitLossEntityRepository.getByUserIdAndTickerAndCurrency(
+                testUserId,
+                testTicker,
+                testCurrency,
             )
+        assertThat(releasedPL.size).isEqualTo(1)
+        releasedPL[0].let {
+            assertThat(it.userId).isEqualTo(testUserId)
+            assertThat(it.ticker).isEqualTo(testTicker)
+            assertThat(it.date).isEqualTo(testDate)
+            assertThat(it.amount).isEqualByComparingTo(BigDecimal.valueOf(205.0))
         }
     }
 
     @Test
-    fun `Sell - Should remove stock holding if it is fully sold and increase cash holding by the released amount`() {
-        val cashAmountAvailable = BigDecimal.valueOf(1000L)
-        // Add previous cash holding
-        cashHoldingsRepository.save(
-            CashHolding(
+    fun `Sell - Should fail if quantity to sell is bigger than holdings`() {
+        val previousQuantity = testQuantity
+        val previousAveragePrice = BigDecimal.valueOf(80L)
+
+        // Previous transaction and stock holding
+        stockTransactionRepository.save(
+            StockTransactionEntity(
                 userId = testUserId,
-                totalAmount = cashAmountAvailable,
+                ticker = testTicker,
+                date = testDate.minusDays(1), // one day before
+                quantity = previousQuantity,
+                price = previousAveragePrice,
                 currency = testCurrency,
+                transactionType = TransactionType.BUY,
             ),
         )
 
-        val previousQuantity = testQuantity
-        val previousAveragePrice = BigDecimal.valueOf(75L)
-        // Add previous stock holding
         stockHoldingsRepository.save(
             StockHoldingEntity(
                 userId = testUserId,
@@ -520,56 +356,26 @@ class StocksTest {
                 userId = testUserId,
                 ticker = testTicker,
                 date = testDate,
-                quantity = testQuantity, // 10 shares
-                price = testPrice, // 100.5 USD per share
+                quantity = testQuantity.plus(20), // Quantity is bigger
+                price = testPrice,
                 currency = testCurrency,
+                transactionType = TransactionType.SELL,
             )
 
         val transactionResponse =
             mockMvc
                 .perform(
                     MockMvcRequestBuilders
-                        .post("/v1/stocks/sell")
+                        .post("/v1/stocks/transaction")
                         .contentType("application/json")
                         .content(
                             Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
                         ),
                 ).andExpect(
-                    status().isCreated,
+                    status().is4xxClientError,
                 ).andReturn()
                 .response.contentAsString
 
-        val transaction = Mapper.objectMapper.readValue(transactionResponse, StockTransactionEntity::class.java)
-        val id = transaction.id
-
-        // Check transaction
-        val savedTransaction = stockTransactionRepository.findById(id)
-        assertThat(savedTransaction.isPresent).isTrue()
-        savedTransaction.get().let {
-            assertThat(it.userId).isEqualTo(testUserId)
-            assertThat(it.ticker).isEqualTo(testTicker)
-            assertThat(it.date).isEqualTo(testDate)
-            assertThat(it.quantity).isEqualTo(testQuantity)
-            assertThat(it.price).isEqualByComparingTo(testPrice)
-            assertThat(it.transactionType).isEqualTo(TransactionType.SELL)
-            assertThat(it.currency).isEqualTo(testCurrency)
-        }
-
-        // Check that stock holding is deleted
-        val stockHoldings = stockHoldingsRepository.getByUserIdAndTicker(testUserId, testTicker)
-        assertThat(stockHoldings.size).isEqualTo(0)
-
-        // Check if cash amount has increased by the right value
-        val cashHoldings = cashHoldingsRepository.findByUserIdAndCurrency(testUserId, testCurrency)
-        assertThat(cashHoldings.size).isEqualTo(1)
-        cashHoldings[0].let {
-            assertThat(it.userId).isEqualTo(testUserId)
-            assertThat(it.currency).isEqualTo(testCurrency)
-            assertThat(it.totalAmount).isEqualByComparingTo(
-                // was 1000, 10 shares * 100.5 USD price per share is sold
-                // 1000 + 10 * 100.5 = 2005
-                BigDecimal.valueOf(2005),
-            )
-        }
+        assertThat(transactionResponse).contains("Cannot add SELL transaction, cannot sell more than current holding at this time")
     }
 }

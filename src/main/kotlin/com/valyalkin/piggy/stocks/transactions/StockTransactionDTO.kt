@@ -13,4 +13,5 @@ data class StockTransactionDTO(
     @field:Min(value = 1, message = "Quantity must be greater than 0") val quantity: Long,
     @field:DecimalMin(value = "0.01", message = "Price must be greater than 0") val price: BigDecimal,
     val currency: Currency,
+    val transactionType: TransactionType,
 )

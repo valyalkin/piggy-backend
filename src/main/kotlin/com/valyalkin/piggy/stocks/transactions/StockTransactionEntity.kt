@@ -8,7 +8,18 @@ import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.util.*
 
-interface StockTransactionRepository : CrudRepository<StockTransactionEntity, UUID>
+interface StockTransactionRepository : CrudRepository<StockTransactionEntity, UUID> {
+    fun findByUserIdAndTickerOrderByDateAsc(
+        userId: String,
+        ticker: String,
+    ): MutableList<StockTransactionEntity>
+
+    fun findByUserIdAndTickerAndCurrencyOrderByDateAsc(
+        userId: String,
+        ticker: String,
+        currency: Currency,
+    ): MutableList<StockTransactionEntity>
+}
 
 @Entity
 @Table(name = "stock_transactions")

@@ -17,7 +17,7 @@ interface StockHoldingsRepository : CrudRepository<StockHoldingEntity, UUID> {
 data class StockHoldingEntity(
     @Id @GeneratedValue(strategy = GenerationType.UUID) val id: UUID = UUID.randomUUID(),
     @Column(name = "user_id") val userId: String,
-    val ticker: String,
+    @Column(name = "ticker", unique = true) val ticker: String,
     val quantity: Long,
     val averagePrice: BigDecimal,
 )

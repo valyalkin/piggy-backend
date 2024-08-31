@@ -12,15 +12,9 @@ import org.springframework.web.bind.annotation.*
 class StocksController(
     private val service: StockTransactionsService,
 ) {
-    @PostMapping("/buy")
+    @PostMapping("/transaction")
     @ResponseStatus(HttpStatus.CREATED)
-    fun buyStock(
+    fun transaction(
         @RequestBody @Valid stockTransactionDTO: StockTransactionDTO,
-    ): StockTransactionEntity = service.buy(stockTransactionDTO)
-
-    @PostMapping("/sell")
-    @ResponseStatus(HttpStatus.CREATED)
-    fun sellStock(
-        @RequestBody @Valid stockTransactionDTO: StockTransactionDTO,
-    ): StockTransactionEntity = service.sell(stockTransactionDTO)
+    ): StockTransactionEntity = service.transaction(stockTransactionDTO)
 }
