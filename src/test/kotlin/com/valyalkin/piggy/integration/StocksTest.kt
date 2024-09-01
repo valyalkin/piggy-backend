@@ -78,6 +78,13 @@ class StocksTest {
             transactionType = transactionType,
         )
 
+    private data class TestData(
+        val transactionType: TransactionType,
+        val quantity: Long,
+        val price: BigDecimal,
+        val minusDays: Long,
+    )
+
     @Test
     fun `Buy - Should add new transaction and add new stock holding`() {
         val stockTransactionDTO =
@@ -231,8 +238,8 @@ class StocksTest {
         // Previous transaction and stock holding
 
         recordPreviousTransaction(
-            previousQuantity = previousQuantity,
-            previousAveragePrice = previousAveragePrice,
+            quantity = previousQuantity,
+            price = previousAveragePrice,
             minusDays = 1L,
             transactionType = TransactionType.BUY,
         )
@@ -299,6 +306,83 @@ class StocksTest {
     }
 
     @Test
+    fun `BUY and SELL - Should add new transaction and update the existing stock holding with new quantity, record released pl`() {
+        val transactions =
+            listOf(
+                TestData(TransactionType.BUY, 10, BigDecimal.valueOf(100L), 10),
+                TestData(TransactionType.BUY, 5, BigDecimal.valueOf(90L), 9),
+                TestData(TransactionType.BUY, 10, BigDecimal.valueOf(110L), 8),
+                TestData(TransactionType.SELL, 5, BigDecimal.valueOf(120L), 7),
+                TestData(TransactionType.BUY, 15, BigDecimal.valueOf(100L), 6),
+                TestData(TransactionType.SELL, 5, BigDecimal.valueOf(80L), 5),
+            )
+
+        transactions.forEach {
+            recordPreviousTransaction(
+                quantity = it.quantity,
+                price = it.price,
+                minusDays = it.minusDays,
+                transactionType = it.transactionType,
+            )
+        }
+
+        val stockTransactionDTO =
+            testStockTransactionDto(
+                transactionType = TransactionType.BUY,
+            ).copy(
+                quantity = 2L,
+                price = BigDecimal.valueOf(70L),
+                date = testDate,
+            )
+
+        val transactionResponse =
+            mockMvc
+                .perform(
+                    MockMvcRequestBuilders
+                        .post("/v1/stocks/transaction")
+                        .contentType("application/json")
+                        .content(
+                            Mapper.objectMapper.writeValueAsString(stockTransactionDTO),
+                        ),
+                ).andExpect(
+                    status().isCreated,
+                ).andReturn()
+                .response.contentAsString
+
+        val transaction = Mapper.objectMapper.readValue(transactionResponse, StockTransactionEntity::class.java)
+        val id = transaction.id
+
+        // Check transaction
+        val savedTransactions = stockTransactionRepository.findAll()
+        assertThat(savedTransactions.count()).isEqualTo(7)
+
+        // Check stock holding
+        val stockHoldings = stockHoldingsRepository.getByUserIdAndTicker(testUserId, testTicker)
+        assertThat(stockHoldings.size).isEqualTo(1)
+        stockHoldings[0].let {
+            assertThat(it.userId).isEqualTo(testUserId)
+            assertThat(it.ticker).isEqualTo(testTicker)
+            assertThat(it.quantity).isEqualTo(32L)
+            assertThat(it.averagePrice).isEqualByComparingTo(BigDecimal.valueOf(99.18))
+        }
+
+        // Check released profit
+        val releasedPL =
+            releasedProfitLossEntityRepository
+                .getByUserIdAndTickerAndCurrency(
+                    testUserId,
+                    testTicker,
+                    testCurrency,
+                ).sortedBy {
+                    it.date
+                }
+
+        assertThat(releasedPL.size).isEqualTo(2)
+        assertThat(releasedPL[0].amount).isEqualByComparingTo(BigDecimal.valueOf(90.05))
+        assertThat(releasedPL[1].amount).isEqualByComparingTo(BigDecimal.valueOf(-105.65))
+    }
+
+    @Test
     fun `Sell - Should fail if quantity to sell is bigger than holdings`() {
         val previousQuantity = testQuantity
         val previousAveragePrice = BigDecimal.valueOf(80L)
@@ -350,8 +434,8 @@ class StocksTest {
     }
 
     private fun recordPreviousTransaction(
-        previousQuantity: Long,
-        previousAveragePrice: BigDecimal,
+        quantity: Long,
+        price: BigDecimal,
         minusDays: Long,
         transactionType: TransactionType,
     ) {
@@ -361,8 +445,8 @@ class StocksTest {
                 userId = testUserId,
                 ticker = testTicker,
                 date = testDate.minusDays(minusDays), // one day before
-                quantity = previousQuantity,
-                price = previousAveragePrice,
+                quantity = quantity,
+                price = price,
                 currency = testCurrency,
                 transactionType = transactionType,
             ),
