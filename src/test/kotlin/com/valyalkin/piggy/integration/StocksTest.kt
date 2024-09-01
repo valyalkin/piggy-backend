@@ -67,16 +67,21 @@ class StocksTest {
     private val testQuantity = 10L
     private val testPrice = BigDecimal.valueOf(100.5)
 
+    private fun testStockTransactionDto(transactionType: TransactionType) =
+        StockTransactionDTO(
+            userId = testUserId,
+            ticker = testTicker,
+            date = testDate,
+            quantity = testQuantity,
+            price = testPrice,
+            currency = testCurrency,
+            transactionType = transactionType,
+        )
+
     @Test
     fun `Buy - Should add new transaction and add new stock holding`() {
         val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
+            testStockTransactionDto(
                 transactionType = TransactionType.BUY,
             )
 
@@ -124,13 +129,7 @@ class StocksTest {
     @Test
     fun `Sell - Should fail if first transaction is SELL`() {
         val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
+            testStockTransactionDto(
                 transactionType = TransactionType.SELL,
             )
 
@@ -179,13 +178,7 @@ class StocksTest {
         )
 
         val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
+            testStockTransactionDto(
                 transactionType = TransactionType.BUY,
             )
 
@@ -236,35 +229,16 @@ class StocksTest {
         val previousAveragePrice = BigDecimal.valueOf(80L)
 
         // Previous transaction and stock holding
-        stockTransactionRepository.save(
-            StockTransactionEntity(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate.minusDays(1), // one day before
-                quantity = previousQuantity,
-                price = previousAveragePrice,
-                currency = testCurrency,
-                transactionType = TransactionType.BUY,
-            ),
-        )
 
-        stockHoldingsRepository.save(
-            StockHoldingEntity(
-                userId = testUserId,
-                ticker = testTicker,
-                quantity = previousQuantity,
-                averagePrice = previousAveragePrice,
-            ),
+        recordPreviousTransaction(
+            previousQuantity = previousQuantity,
+            previousAveragePrice = previousAveragePrice,
+            minusDays = 1L,
+            transactionType = TransactionType.BUY,
         )
 
         val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity,
-                price = testPrice,
-                currency = testCurrency,
+            testStockTransactionDto(
                 transactionType = TransactionType.SELL,
             )
 
@@ -352,14 +326,10 @@ class StocksTest {
         )
 
         val stockTransactionDTO =
-            StockTransactionDTO(
-                userId = testUserId,
-                ticker = testTicker,
-                date = testDate,
-                quantity = testQuantity.plus(20), // Quantity is bigger
-                price = testPrice,
-                currency = testCurrency,
+            testStockTransactionDto(
                 transactionType = TransactionType.SELL,
+            ).copy(
+                quantity = testQuantity.plus(20), // Quantity is bigger
             )
 
         val transactionResponse =
@@ -377,5 +347,25 @@ class StocksTest {
                 .response.contentAsString
 
         assertThat(transactionResponse).contains("Cannot add SELL transaction, cannot sell more than current holding at this time")
+    }
+
+    private fun recordPreviousTransaction(
+        previousQuantity: Long,
+        previousAveragePrice: BigDecimal,
+        minusDays: Long,
+        transactionType: TransactionType,
+    ) {
+        // Previous transaction and stock holding
+        stockTransactionRepository.save(
+            StockTransactionEntity(
+                userId = testUserId,
+                ticker = testTicker,
+                date = testDate.minusDays(minusDays), // one day before
+                quantity = previousQuantity,
+                price = previousAveragePrice,
+                currency = testCurrency,
+                transactionType = transactionType,
+            ),
+        )
     }
 }
