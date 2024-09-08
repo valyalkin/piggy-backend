@@ -6,9 +6,15 @@ Content-Type: application/json
 {
   "userId": "user",
   "ticker": "APPL",
-  "date" : "2023-11-26T18:35:24.00Z",
+  "date" : "2023-12-25T18:36:24.00Z",
   "quantity": 5,
-  "price": 150.0,
+  "price": 200.0,
   "transactionType": "SELL",
   "currency": "USD"
 }
+
+### Get all transactions
+
+GET http://localhost:8080/v1/stocks/transactions?userId=user&currency=USD&page=1
+Content-Type: application/json
+

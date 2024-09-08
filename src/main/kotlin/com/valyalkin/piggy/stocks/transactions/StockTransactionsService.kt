@@ -5,6 +5,9 @@ import com.valyalkin.piggy.stocks.holdings.StockHoldingEntity
 import com.valyalkin.piggy.stocks.holdings.StockHoldingsRepository
 import com.valyalkin.piggy.stocks.pl.ReleasedProfitLossEntity
 import com.valyalkin.piggy.stocks.pl.ReleasedProfitLossEntityRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -142,6 +145,21 @@ class StockTransactionsService(
         )
     }
 
+    fun getTransactions(
+        userId: String,
+        currency: Currency,
+        page: Int,
+        pageSize: Int?,
+    ): Page<StockTransactionEntity> {
+        val sortBy = Sort.by(DATE_FIELD).descending()
+        val pageable = PageRequest.of(page - 1, pageSize ?: DEFAULT_PAGE_SIZE, sortBy)
+        return stockTransactionRepository.findByUserIdAndCurrency(
+            userId,
+            currency,
+            pageable,
+        )
+    }
+
     private data class StockTransaction(
         val date: OffsetDateTime,
         val quantity: Long,
@@ -190,5 +208,10 @@ class StockTransactionsService(
                 currency = currency,
             ),
         )
+    }
+
+    companion object {
+        private const val DEFAULT_PAGE_SIZE = 10
+        private const val DATE_FIELD = "date"
     }
 }

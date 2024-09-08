@@ -350,7 +350,6 @@ class StocksTest {
                 .response.contentAsString
 
         val transaction = Mapper.objectMapper.readValue(transactionResponse, StockTransactionEntity::class.java)
-        val id = transaction.id
 
         // Check transaction
         val savedTransactions = stockTransactionRepository.findAll()

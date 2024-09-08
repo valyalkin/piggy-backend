@@ -3,6 +3,8 @@
 package com.valyalkin.piggy.stocks.transactions
 
 import jakarta.persistence.*
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.CrudRepository
 import java.math.BigDecimal
 import java.time.OffsetDateTime
@@ -12,13 +14,24 @@ interface StockTransactionRepository : CrudRepository<StockTransactionEntity, UU
     fun findByUserIdAndTickerOrderByDateAsc(
         userId: String,
         ticker: String,
-    ): MutableList<StockTransactionEntity>
+    ): List<StockTransactionEntity>
 
     fun findByUserIdAndTickerAndCurrencyOrderByDateAsc(
         userId: String,
         ticker: String,
         currency: Currency,
-    ): MutableList<StockTransactionEntity>
+    ): List<StockTransactionEntity>
+
+    fun findByUserIdAndCurrencyOrderByDateDesc(
+        userId: String,
+        currency: Currency,
+    ): List<StockTransactionEntity>
+
+    fun findByUserIdAndCurrency(
+        userId: String,
+        currency: Currency,
+        pageable: Pageable,
+    ): Page<StockTransactionEntity>
 }
 
 @Entity
