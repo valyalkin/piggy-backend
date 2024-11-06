@@ -121,6 +121,7 @@ class StockTransactionsService(
                     ticker = ticker,
                     quantity = qty,
                     averagePrice = averagePrice,
+                    currency = currency,
                 ),
             )
         } else {
@@ -183,6 +184,7 @@ class StockTransactionsService(
                     ticker = ticker,
                     quantity = quantity,
                     averagePrice = price,
+                    currency = currency,
                 ),
             )
         } else {
@@ -193,6 +195,7 @@ class StockTransactionsService(
                     ticker = ticker,
                     quantity = quantity,
                     averagePrice = price,
+                    currency = currency,
                 ),
             )
         }

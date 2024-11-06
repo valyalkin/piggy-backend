@@ -1,6 +1,5 @@
 package com.valyalkin.piggy.integration
 
-import com.valyalkin.piggy.cash.holdings.CashHoldingsRepository
 import com.valyalkin.piggy.configuration.Mapper
 import com.valyalkin.piggy.stocks.holdings.StockHoldingEntity
 import com.valyalkin.piggy.stocks.holdings.StockHoldingsRepository
@@ -28,9 +27,6 @@ class StocksTest {
     private lateinit var mockMvc: MockMvc
 
     @Autowired
-    private lateinit var cashHoldingsRepository: CashHoldingsRepository
-
-    @Autowired
     private lateinit var stockTransactionRepository: StockTransactionRepository
 
     @Autowired
@@ -41,7 +37,6 @@ class StocksTest {
 
     @BeforeEach
     fun cleanUp() {
-        cashHoldingsRepository.deleteAll()
         stockTransactionRepository.deleteAll()
         stockHoldingsRepository.deleteAll()
         releasedProfitLossEntityRepository.deleteAll()
@@ -161,6 +156,7 @@ class StocksTest {
     fun `Buy - Should add new transaction and update the existing stock holding with new average price and quantity`() {
         val previousQuantity = 5L
         val previousAveragePrice = BigDecimal.valueOf(100L)
+        val currency = Currency.USD
 
         // Previous transaction and stock holding
         stockTransactionRepository.save(
@@ -181,6 +177,7 @@ class StocksTest {
                 ticker = testTicker,
                 quantity = previousQuantity,
                 averagePrice = previousAveragePrice,
+                currency = currency,
             ),
         )
 
@@ -385,6 +382,7 @@ class StocksTest {
     fun `Sell - Should fail if quantity to sell is bigger than holdings`() {
         val previousQuantity = testQuantity
         val previousAveragePrice = BigDecimal.valueOf(80L)
+        val currency = Currency.USD
 
         // Previous transaction and stock holding
         stockTransactionRepository.save(
@@ -405,6 +403,7 @@ class StocksTest {
                 ticker = testTicker,
                 quantity = previousQuantity,
                 averagePrice = previousAveragePrice,
+                currency = currency,
             ),
         )
 

@@ -1,5 +1,6 @@
 package com.valyalkin.piggy.stocks.holdings
 
+import com.valyalkin.piggy.stocks.transactions.Currency
 import jakarta.persistence.*
 import org.springframework.data.repository.CrudRepository
 import java.math.BigDecimal
@@ -9,6 +10,11 @@ interface StockHoldingsRepository : CrudRepository<StockHoldingEntity, UUID> {
     fun getByUserIdAndTicker(
         userId: String,
         ticker: String,
+    ): List<StockHoldingEntity>
+
+    fun getAllByUserIdAndCurrency(
+        userId: String,
+        currency: Currency,
     ): List<StockHoldingEntity>
 }
 
@@ -20,4 +26,5 @@ data class StockHoldingEntity(
     @Column(name = "ticker", unique = true) val ticker: String,
     val quantity: Long,
     val averagePrice: BigDecimal,
+    @Enumerated(EnumType.STRING) val currency: Currency,
 )

@@ -83,7 +83,7 @@ Content-Type: application/json
   "ticker": "APPL",
   "date" : "2023-12-25T18:36:24.00Z",
   "quantity": 5,
-  "price": 200.0,
+  "price": 300.0,
   "transactionType": "BUY",
   "currency": "USD"
 }

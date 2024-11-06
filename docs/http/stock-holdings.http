@@ -1,0 +1,4 @@
+### Get all holdings
+
+GET http://localhost:8080/v1/stocks/holdings?userId=user&currency=USD
+Content-Type: application/json
