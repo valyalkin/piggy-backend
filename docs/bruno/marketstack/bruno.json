@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "marketstack",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

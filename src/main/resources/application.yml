@@ -16,4 +16,5 @@ spring:
 
 data:
   marketstack:
-    apikey: "xxxx"
+    url: http://localhost:8080 # Wiremock stub server
+    apikey: "xxx"

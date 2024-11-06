@@ -1,0 +1,19 @@
+meta {
+  name: end-of-day-data
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:8080/v1/eod?access_key=xxx&symbols=AAPL,NET&date_from=2019-01-01&limit=100&offset=500
+  body: none
+  auth: none
+}
+
+params:query {
+  access_key: xxx
+  symbols: AAPL,NET
+  date_from: 2019-01-01
+  limit: 100
+  offset: 500
+}

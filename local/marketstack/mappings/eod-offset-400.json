@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/eod",
+    "queryParameters": {
+      "access_key": {
+        "equalTo": "xxx"
+      },
+      "symbols": {
+        "equalTo": "AAPL,NET"
+      },
+      "date_from": {
+        "equalTo": "2019-01-01"
+      },
+      "limit": {
+        "equalTo": "100"
+      },
+      "offset": {
+        "equalTo": "400"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "bodyFileName": "eod-offset-400-response.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
